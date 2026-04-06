@@ -337,6 +337,17 @@ def render_history(state: dict, chat_id: int):
         lines.append(f"{arrow} {html.escape(item['ts'])} [{html.escape(item['type'])}] {preview}")
     return "\n".join(lines)
 
+def render_blacklist_panel(state: dict):
+    users = state.get("users", {})
+    banned = []
+    for chat_id, record in users.items():
+        if record.get("banned"):
+            label = html.escape(record.get("label") or f"User {chat_id}")
+            banned.append(f"• <code>{chat_id}</code> {label}")
+    if not banned:
+        return "🚫 当前黑名单为空。"
+    return "🚫 黑名单列表：\n" + "\n".join(banned)
+
 
 def extract_target_chat_id(state: dict, msg: dict):
     reply_msg = msg.get("reply_to_message")
@@ -541,6 +552,9 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
 
     if cmd == "/start":
         send_text(tg, chat_id, "管理员在线。私聊模式下回复转发消息即可；群话题模式下先在群里发送 /bindgroup 绑定。", reply_to=msg.get("message_id"))
+        return
+    if cmd == "/blacklist":
+        send_text(tg, chat_id, render_blacklist_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML")
         return
     if cmd == "/help":
         help_text = (

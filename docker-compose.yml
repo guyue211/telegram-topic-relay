@@ -1,0 +1,13 @@
+services:
+  telegram-topic-relay:
+    build: .
+    container_name: telegram-topic-relay
+    restart: always
+    ports:
+      - "127.0.0.1:8780:8780"
+    working_dir: /app
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./state.json:/app/state.json
+      - ./relay.log:/app/relay.log
+      - ./nohup.out:/app/nohup.out
