@@ -1,0 +1,7 @@
+{
+  "bot_token": "YOUR_BOT_TOKEN",
+  "admin_id": 123456789,
+  "listen_host": "127.0.0.1",
+  "listen_port": 8780,
+  "webhook_secret": "CHANGE_ME"
+}
