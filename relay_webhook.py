@@ -228,6 +228,13 @@ def create_forum_topic(tg: TG, chat_id: int, name: str):
 def edit_forum_topic(tg: TG, chat_id: int, message_thread_id: int, name: str):
     return tg.call("editForumTopic", {"chat_id": chat_id, "message_thread_id": message_thread_id, "name": name})
 
+def register_bot_commands(tg: TG):
+    try:
+        tg.call("setMyCommands", {"commands": json.dumps(BOT_COMMANDS, ensure_ascii=False)})
+        log("registered bot commands menu")
+    except Exception as e:
+        log(f"register bot commands failed: {e}")
+
 
 def ensure_user_record(state: dict, chat_id: int, user=None):
     key = str(chat_id)
