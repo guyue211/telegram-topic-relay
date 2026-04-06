@@ -814,10 +814,10 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
         send_text(tg, chat_id, "管理员在线。私聊模式下回复转发消息即可；群话题模式下先在群里发送 /bindgroup 绑定。", reply_to=msg.get("message_id"), reply_markup=build_admin_reply_keyboard())
         return
     if cmd == "/blacklist":
-        send_text(tg, chat_id, render_blacklist_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
+        send_text(tg, chat_id, render_blacklist_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, 0))
         return
     if cmd == "/tags":
-        send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
+        send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0))
         return
     if cmd == "/tagsearch":
         send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg) if arg else (build_admin_reply_keyboard() if chat.get("type") == "private" else {"inline_keyboard": [[{"text": "🏠 主菜单", "callback_data": "menu:0"}]]}))
