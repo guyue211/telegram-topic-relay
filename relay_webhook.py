@@ -386,7 +386,7 @@ def build_admin_reply_keyboard():
         "keyboard": [
             [{"text": "🏷 标签面板"}, {"text": "🚫 黑名单面板"}],
             [{"text": "📊 统计面板"}, {"text": "🔎 标签搜索"}],
-            [{"text": "📋 功能菜单"}, {"text": "ℹ️ 使用帮助"}],
+            [{"text": "ℹ️ 使用帮助"}],
         ],
         "resize_keyboard": True,
         "is_persistent": True,
@@ -752,10 +752,7 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
         if chat_id != config["admin_id"]:
             return
 
-    if text == "📋 功能菜单":
-        cmd = "/menu"
-        arg = ""
-    elif text == "🏷 标签面板":
+    if text == "🏷 标签面板":
         cmd = "/tags"
         arg = ""
     elif text == "🚫 黑名单面板":
