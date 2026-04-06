@@ -30,6 +30,7 @@ DEFAULT_STATE = {
 }
 
 MAX_HISTORY_PER_USER = 80
+PANEL_PAGE_SIZE = 8
 running = True
 STATE = None
 CONFIG = None
@@ -558,10 +559,10 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
         send_text(tg, chat_id, "管理员在线。私聊模式下回复转发消息即可；群话题模式下先在群里发送 /bindgroup 绑定。", reply_to=msg.get("message_id"))
         return
     if cmd == "/blacklist":
-        send_text(tg, chat_id, render_blacklist_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state))
+        send_text(tg, chat_id, render_blacklist_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, 0))
         return
     if cmd == "/tags":
-        send_text(tg, chat_id, render_tags_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state))
+        send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0))
         return
     if cmd == "/help":
         help_text = (
@@ -622,7 +623,9 @@ def handle_callback_query(tg: TG, config: dict, state: dict, query: dict):
         safe_answer_callback_query(tg, query["id"], "无效操作")
         return
 
-    action, raw_chat_id = data.split(":", 1)
+    parts = data.split(":")
+    action = parts[0]
+    raw_chat_id = parts[1] if len(parts) > 1 else "0"
     try:
         chat_id = int(raw_chat_id)
     except ValueError:
@@ -674,23 +677,29 @@ def handle_callback_query(tg: TG, config: dict, state: dict, query: dict):
     elif action == "tagpanel":
         safe_answer_callback_query(tg, query["id"], "打开标签面板")
         if message_id:
-            edit_message_text(tg, admin_chat_id, message_id, render_tags_panel(state), parse_mode="HTML", reply_markup=build_tags_keyboard(state))
+            edit_message_text(tg, admin_chat_id, message_id, render_tags_panel(state, 0), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0))
     elif action == "tags":
+        page = int(raw_chat_id or 0)
         safe_answer_callback_query(tg, query["id"], "返回标签面板")
         if message_id:
-            edit_message_text(tg, admin_chat_id, message_id, render_tags_panel(state), parse_mode="HTML", reply_markup=build_tags_keyboard(state))
+            edit_message_text(tg, admin_chat_id, message_id, render_tags_panel(state, page), parse_mode="HTML", reply_markup=build_tags_keyboard(state, page))
     elif action == "taglist":
+        tag = parts[1] if len(parts) > 1 else ""
+        page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
         safe_answer_callback_query(tg, query["id"], "查看标签用户")
         if message_id:
-            edit_message_text(tg, admin_chat_id, message_id, render_tag_users(state, raw_chat_id), parse_mode="HTML", reply_markup=build_tag_users_keyboard(state, raw_chat_id))
+            edit_message_text(tg, admin_chat_id, message_id, render_tag_users(state, tag, page), parse_mode="HTML", reply_markup=build_tag_users_keyboard(state, tag, page))
     elif action == "openprofile":
         safe_answer_callback_query(tg, query["id"], "打开用户资料")
         if message_id:
             send_profile_card(tg, admin_chat_id, state, chat_id, reply_to=message_id)
     elif action == "blacklist":
+        page = int(raw_chat_id or 0)
         safe_answer_callback_query(tg, query["id"], "打开黑名单面板")
         if message_id:
-            edit_message_text(tg, admin_chat_id, message_id, render_blacklist_panel(state), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state))
+            edit_message_text(tg, admin_chat_id, message_id, render_blacklist_panel(state, page), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, page))
+    elif action == "tagsearch":
+        safe_answer_callback_query(tg, query["id"], "在当前话题或群里发送 /tags 查看全部，再用 /tag 标签名 给用户打标")
     elif action == "noop":
         safe_answer_callback_query(tg, query["id"], "当前没有内容")
     else:
