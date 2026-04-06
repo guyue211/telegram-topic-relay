@@ -452,6 +452,48 @@ def build_tags_keyboard(state: dict, page: int = 0):
     return {"inline_keyboard": keyboard}
 
 
+def _find_users_by_tag(state: dict, tag: str):
+    users = state.get("users", {})
+    matched = []
+    for chat_id, record in users.items():
+        tags = [str(x) for x in record.get("tags", [])]
+        if tag in tags:
+            matched.append((int(chat_id), record.get("label") or f"User {chat_id}"))
+    matched.sort(key=lambda item: (item[1].lower(), item[0]))
+    return matched
+
+
+def render_tag_users(state: dict, tag: str, page: int = 0):
+    tag = (tag or '').strip()
+    if not tag:
+        return "🏷 标签用户\n\n标签不能为空。"
+    matched = _find_users_by_tag(state, tag)
+    if not matched:
+        return f"🏷 标签：{html.escape(tag)}\n\n这个标签下还没有用户。"
+    items, page, total = _paginate(matched, page)
+    lines = [f"🏷 标签：{html.escape(tag)}，第 {page + 1}/{total} 页", ""]
+    for chat_id, label in items:
+        lines.append(f"• <code>{chat_id}</code> {html.escape(label)}")
+    return "\n".join(lines)
+
+
+def build_tag_users_keyboard(state: dict, tag: str, page: int = 0):
+    matched = _find_users_by_tag(state, tag)
+    items, page, total = _paginate(matched, page)
+    keyboard = []
+    for chat_id, label in items:
+        keyboard.append([{"text": f"👤 {label[:18]}", "callback_data": f"openprofile:{chat_id}"}])
+    nav = []
+    if page > 0:
+        nav.append({"text": "⬅️ 上一页", "callback_data": f"tagusers:{tag}:{page-1}"})
+    if page < total - 1:
+        nav.append({"text": "下一页 ➡️", "callback_data": f"tagusers:{tag}:{page+1}"})
+    if nav:
+        keyboard.append(nav)
+    keyboard.append([{"text": "🏷 标签面板", "callback_data": "tags:0"}, {"text": "🏠 主菜单", "callback_data": "menu:0"}])
+    return {"inline_keyboard": keyboard}
+
+
 def render_blacklist_panel(state: dict, page: int = 0):
     users = state.get("users", {})
     banned = []
@@ -778,7 +820,7 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
         send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
         return
     if cmd == "/tagsearch":
-        send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
+        send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg) if arg else (build_admin_reply_keyboard() if chat.get("type") == "private" else {"inline_keyboard": [[{"text": "🏠 主菜单", "callback_data": "menu:0"}]]}))
         return
     if cmd == "/menu":
         send_text(tg, chat_id, render_main_menu(), reply_to=msg.get("message_id"), reply_markup=build_main_menu_keyboard() if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
@@ -849,6 +891,19 @@ def handle_callback_query(tg: TG, config: dict, state: dict, query: dict):
     parts = data.split(":")
     action = parts[0]
     raw_chat_id = parts[1] if len(parts) > 1 else "0"
+    message = query.get("message", {})
+    admin_chat_id = message.get("chat", {}).get("id", config["admin_id"])
+    message_id = message.get("message_id")
+
+    if action in ("tagusers", "taglist"):
+        tag = raw_chat_id
+        page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+        safe_answer_callback_query(tg, query["id"], "查看标签用户")
+        if message_id:
+            edit_message_text(tg, admin_chat_id, message_id, render_tag_users(state, tag, page), parse_mode="HTML", reply_markup=build_tag_users_keyboard(state, tag, page))
+        save_json(STATE_PATH, state)
+        return
+
     try:
         chat_id = int(raw_chat_id)
     except ValueError:
@@ -856,9 +911,6 @@ def handle_callback_query(tg: TG, config: dict, state: dict, query: dict):
         return
 
     record = ensure_user_record(state, chat_id)
-    message = query.get("message", {})
-    admin_chat_id = message.get("chat", {}).get("id", config["admin_id"])
-    message_id = message.get("message_id")
     thread_id = record.get("topic_id") if admin_chat_id == state.get("admin_group_id") else None
 
     if action == "ban":
