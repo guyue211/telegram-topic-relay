@@ -589,7 +589,7 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
     if cmd == "/stats":
         send_text(tg, chat_id, render_stats_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_admin_reply_keyboard() if chat.get("type") == "private" else None)
         return
-    if text == "📋 菜单面板":
+    if text == "📋 功能菜单":
         cmd = "/menu"
         arg = ""
     elif text == "🏷 标签面板":
@@ -598,10 +598,10 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
     elif text == "🚫 黑名单面板":
         cmd = "/blacklist"
         arg = ""
-    elif text == "📊 统计信息":
+    elif text == "📊 统计面板":
         cmd = "/stats"
         arg = ""
-    elif text == "🔎 搜索标签":
+    elif text == "🔎 标签搜索":
         cmd = "/tagsearch"
         arg = ""
     elif text == "ℹ️ 使用帮助":
