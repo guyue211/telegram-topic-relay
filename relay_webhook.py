@@ -572,23 +572,42 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
             return
 
     if cmd == "/start":
-        send_text(tg, chat_id, "管理员在线。私聊模式下回复转发消息即可；群话题模式下先在群里发送 /bindgroup 绑定。", reply_to=msg.get("message_id"))
+        send_text(tg, chat_id, "管理员在线。私聊模式下回复转发消息即可；群话题模式下先在群里发送 /bindgroup 绑定。", reply_to=msg.get("message_id"), reply_markup=build_admin_reply_keyboard())
         return
     if cmd == "/blacklist":
-        send_text(tg, chat_id, render_blacklist_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, 0))
+        send_text(tg, chat_id, render_blacklist_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
         return
     if cmd == "/tags":
-        send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0))
+        send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
         return
     if cmd == "/tagsearch":
-        send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg))
+        send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
         return
     if cmd == "/menu":
-        send_text(tg, chat_id, render_main_menu(), reply_to=msg.get("message_id"), reply_markup=build_main_menu_keyboard())
+        send_text(tg, chat_id, render_main_menu(), reply_to=msg.get("message_id"), reply_markup=build_main_menu_keyboard() if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
         return
     if cmd == "/stats":
-        send_text(tg, chat_id, render_stats_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML")
+        send_text(tg, chat_id, render_stats_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_admin_reply_keyboard() if chat.get("type") == "private" else None)
         return
+    if text == "📋 菜单面板":
+        cmd = "/menu"
+        arg = ""
+    elif text == "🏷 标签面板":
+        cmd = "/tags"
+        arg = ""
+    elif text == "🚫 黑名单面板":
+        cmd = "/blacklist"
+        arg = ""
+    elif text == "📊 统计信息":
+        cmd = "/stats"
+        arg = ""
+    elif text == "🔎 搜索标签":
+        cmd = "/tagsearch"
+        arg = ""
+    elif text == "ℹ️ 使用帮助":
+        cmd = "/help"
+        arg = ""
+
     if cmd == "/help":
         help_text = (
             "管理员命令：\n"
@@ -598,7 +617,7 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
             "私聊模式：回复用户转发消息即可。\n"
             "群话题模式：建议先去 BotFather 关闭 /setprivacy，然后你在对应话题里直接回复或发消息都行。"
         )
-        send_text(tg, chat_id, help_text, reply_to=msg.get("message_id"))
+        send_text(tg, chat_id, help_text, reply_to=msg.get("message_id"), reply_markup=build_admin_reply_keyboard() if chat.get("type") == "private" else None)
         return
 
     target_chat = extract_target_chat_id(state, msg)
