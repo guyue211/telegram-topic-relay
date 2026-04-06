@@ -37,14 +37,7 @@ CONFIG = None
 TG_CLIENT = None
 BOT_INFO = None
 
-BOT_COMMANDS = [
-    {"command": "menu", "description": "打开管理面板"},
-    {"command": "tags", "description": "查看标签面板"},
-    {"command": "tagsearch", "description": "搜索标签"},
-    {"command": "blacklist", "description": "查看黑名单面板"},
-    {"command": "stats", "description": "查看统计信息"},
-    {"command": "help", "description": "查看帮助"},
-]
+BOT_COMMANDS = []
 
 
 def on_signal(signum, frame):
@@ -230,10 +223,10 @@ def edit_forum_topic(tg: TG, chat_id: int, message_thread_id: int, name: str):
 
 def register_bot_commands(tg: TG):
     try:
-        tg.call("setMyCommands", {"commands": json.dumps(BOT_COMMANDS, ensure_ascii=False)})
-        log("registered bot commands menu")
+        tg.call("deleteMyCommands", {})
+        log("cleared bot commands menu")
     except Exception as e:
-        log(f"register bot commands failed: {e}")
+        log(f"clear bot commands failed: {e}")
 
 
 def ensure_user_record(state: dict, chat_id: int, user=None):
@@ -368,6 +361,194 @@ def render_blacklist_panel(state: dict):
     if not banned:
         return "🚫 当前黑名单为空。"
     return "🚫 黑名单列表：\n" + "\n".join(banned)
+
+
+def build_main_menu_keyboard():
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "🏷 标签面板", "callback_data": "tags:0"},
+                {"text": "🚫 黑名单面板", "callback_data": "blacklist:0"}
+            ],
+            [
+                {"text": "🔎 搜索标签", "callback_data": "tagsearch:0"},
+                {"text": "📊 统计信息", "callback_data": "stats:0"}
+            ],
+            [
+                {"text": "ℹ️ 帮助", "callback_data": "menuhelp:0"}
+            ]
+        ]
+    }
+
+
+def build_admin_reply_keyboard():
+    return {
+        "keyboard": [
+            [{"text": "🏷 标签面板"}, {"text": "🚫 黑名单面板"}],
+            [{"text": "📊 统计面板"}, {"text": "🔎 标签搜索"}],
+            [{"text": "📋 功能菜单"}, {"text": "ℹ️ 使用帮助"}],
+        ],
+        "resize_keyboard": True,
+        "is_persistent": True,
+        "input_field_placeholder": "选择一个功能"
+    }
+
+
+def render_main_menu():
+    return (
+        "📋 管理面板\n\n"
+        "可用功能：\n"
+        "- 标签面板\n"
+        "- 黑名单面板\n"
+        "- 标签搜索\n"
+        "- 统计信息\n"
+        "- 帮助说明"
+    )
+
+
+def _paginate(items, page, page_size=8):
+    total = max(1, (len(items) + page_size - 1) // page_size)
+    page = max(0, min(page, total - 1))
+    start = page * page_size
+    end = start + page_size
+    return items[start:end], page, total
+
+
+def render_tags_panel(state: dict, page: int = 0):
+    users = state.get("users", {})
+    tag_map = {}
+    for chat_id, record in users.items():
+        for tag in record.get("tags", []):
+            tag_map.setdefault(str(tag), []).append(int(chat_id))
+    tags = sorted(tag_map.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    items, page, total = _paginate(tags, page)
+    if not tags:
+        return "🏷 当前还没有标签。"
+    lines = [f"🏷 标签面板，第 {page + 1}/{total} 页"]
+    for tag, chat_ids in items:
+        lines.append(f"• {html.escape(tag)} ({len(chat_ids)})")
+    return "\n".join(lines)
+
+
+def build_tags_keyboard(state: dict, page: int = 0):
+    users = state.get("users", {})
+    tag_map = {}
+    for chat_id, record in users.items():
+        for tag in record.get("tags", []):
+            tag_map.setdefault(str(tag), []).append(int(chat_id))
+    tags = sorted(tag_map.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    items, page, total = _paginate(tags, page)
+    keyboard = []
+    for tag, _ in items:
+        keyboard.append([{"text": f"🏷 {tag}", "callback_data": f"tagusers:{tag}:{page}"}])
+    nav = []
+    if page > 0:
+        nav.append({"text": "⬅️ 上一页", "callback_data": f"tags:{page-1}"})
+    if page < total - 1:
+        nav.append({"text": "下一页 ➡️", "callback_data": f"tags:{page+1}"})
+    if nav:
+        keyboard.append(nav)
+    keyboard.append([{"text": "🏠 主菜单", "callback_data": "menu:0"}])
+    return {"inline_keyboard": keyboard}
+
+
+def render_blacklist_panel(state: dict, page: int = 0):
+    users = state.get("users", {})
+    banned = []
+    for chat_id, record in users.items():
+        if record.get("banned"):
+            label = html.escape(record.get("label") or f"User {chat_id}")
+            banned.append((int(chat_id), label))
+    banned.sort(key=lambda x: x[0])
+    items, page, total = _paginate(banned, page)
+    if not banned:
+        return "🚫 当前黑名单为空。"
+    lines = [f"🚫 黑名单面板，第 {page + 1}/{total} 页"]
+    for chat_id, label in items:
+        lines.append(f"• <code>{chat_id}</code> {label}")
+    return "\n".join(lines)
+
+
+def build_blacklist_keyboard(state: dict, page: int = 0):
+    users = state.get("users", {})
+    banned = []
+    for chat_id, record in users.items():
+        if record.get("banned"):
+            label = record.get("label") or f"User {chat_id}"
+            banned.append((int(chat_id), label))
+    banned.sort(key=lambda x: x[0])
+    items, page, total = _paginate(banned, page)
+    keyboard = []
+    for chat_id, label in items:
+        keyboard.append([{"text": f"✅ 解封 {label[:18]}", "callback_data": f"unban:{chat_id}"}])
+    nav = []
+    if page > 0:
+        nav.append({"text": "⬅️ 上一页", "callback_data": f"blacklist:{page-1}"})
+    if page < total - 1:
+        nav.append({"text": "下一页 ➡️", "callback_data": f"blacklist:{page+1}"})
+    if nav:
+        keyboard.append(nav)
+    keyboard.append([{"text": "🏠 主菜单", "callback_data": "menu:0"}])
+    return {"inline_keyboard": keyboard}
+
+
+def render_stats_panel(state: dict):
+    users = state.get("users", {})
+    total_users = len(users)
+    banned_count = sum(1 for r in users.values() if r.get("banned"))
+    tag_count = len({tag for r in users.values() for tag in r.get("tags", [])})
+    tag_links = sum(len(r.get("tags", [])) for r in users.values())
+    topic_count = sum(1 for r in users.values() if r.get("topic_id"))
+    history_count = sum(len(v) for v in state.get("history", {}).values())
+    hot = {}
+    for r in users.values():
+        for tag in r.get("tags", []):
+            hot[tag] = hot.get(tag, 0) + 1
+    hot_list = sorted(hot.items(), key=lambda kv: (-kv[1], kv[0]))[:5]
+    hot_text = '、'.join(f'{html.escape(str(k))}({v})' for k, v in hot_list) if hot_list else '无'
+    return (
+        "📊 统计面板\n\n"
+        f"- 用户总数: {total_users}\n"
+        f"- 黑名单数: {banned_count}\n"
+        f"- 标签数: {tag_count}\n"
+        f"- 标签关联数: {tag_links}\n"
+        f"- 话题映射数: {topic_count}\n"
+        f"- 历史记录数: {history_count}\n"
+        f"- 热门标签: {hot_text}"
+    )
+
+
+def render_tag_search_result(state: dict, keyword: str):
+    keyword = (keyword or '').strip()
+    if not keyword:
+        return "🔎 标签搜索\n\n请发送：/tagsearch 关键词"
+    users = state.get("users", {})
+    tag_map = {}
+    for chat_id, record in users.items():
+        for tag in record.get("tags", []):
+            tag_map.setdefault(str(tag), []).append(int(chat_id))
+    matched = [(tag, ids) for tag, ids in sorted(tag_map.items()) if keyword.lower() in tag.lower()]
+    if not matched:
+        return f"🔎 标签搜索\n\n没有找到包含“{html.escape(keyword)}”的标签。"
+    lines = [f"🔎 标签搜索：{html.escape(keyword)}"]
+    for tag, ids in matched[:20]:
+        lines.append(f"• {html.escape(tag)} ({len(ids)})")
+    return "\n".join(lines)
+
+
+def build_tag_search_keyboard(state: dict, keyword: str):
+    keyword = (keyword or '').strip()
+    users = state.get("users", {})
+    tag_map = {}
+    for chat_id, record in users.items():
+        for tag in record.get("tags", []):
+            tag_map.setdefault(str(tag), []).append(int(chat_id))
+    matched = [(tag, ids) for tag, ids in sorted(tag_map.items()) if keyword and keyword.lower() in tag.lower()]
+    keyboard = []
+    for tag, _ in matched[:20]:
+        keyboard.append([{"text": f"🏷 {tag}", "callback_data": f"tagusers:{tag}:0"}])
+    keyboard.append([{"text": "🏠 主菜单", "callback_data": "menu:0"}])
+    return {"inline_keyboard": keyboard}
 
 
 def extract_target_chat_id(state: dict, msg: dict):
@@ -571,24 +752,6 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
         if chat_id != config["admin_id"]:
             return
 
-    if cmd == "/start":
-        send_text(tg, chat_id, "管理员在线。私聊模式下回复转发消息即可；群话题模式下先在群里发送 /bindgroup 绑定。", reply_to=msg.get("message_id"), reply_markup=build_admin_reply_keyboard())
-        return
-    if cmd == "/blacklist":
-        send_text(tg, chat_id, render_blacklist_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
-        return
-    if cmd == "/tags":
-        send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
-        return
-    if cmd == "/tagsearch":
-        send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
-        return
-    if cmd == "/menu":
-        send_text(tg, chat_id, render_main_menu(), reply_to=msg.get("message_id"), reply_markup=build_main_menu_keyboard() if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
-        return
-    if cmd == "/stats":
-        send_text(tg, chat_id, render_stats_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_admin_reply_keyboard() if chat.get("type") == "private" else None)
-        return
     if text == "📋 功能菜单":
         cmd = "/menu"
         arg = ""
@@ -607,6 +770,25 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
     elif text == "ℹ️ 使用帮助":
         cmd = "/help"
         arg = ""
+
+    if cmd == "/start":
+        send_text(tg, chat_id, "管理员在线。私聊模式下回复转发消息即可；群话题模式下先在群里发送 /bindgroup 绑定。", reply_to=msg.get("message_id"), reply_markup=build_admin_reply_keyboard())
+        return
+    if cmd == "/blacklist":
+        send_text(tg, chat_id, render_blacklist_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
+        return
+    if cmd == "/tags":
+        send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
+        return
+    if cmd == "/tagsearch":
+        send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg) if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
+        return
+    if cmd == "/menu":
+        send_text(tg, chat_id, render_main_menu(), reply_to=msg.get("message_id"), reply_markup=build_main_menu_keyboard() if chat.get("type") in ("group", "supergroup") else build_admin_reply_keyboard())
+        return
+    if cmd == "/stats":
+        send_text(tg, chat_id, render_stats_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_admin_reply_keyboard() if chat.get("type") == "private" else None)
+        return
 
     if cmd == "/help":
         help_text = (
