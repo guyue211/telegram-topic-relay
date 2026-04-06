@@ -2,45 +2,35 @@
 
 [中文](./README.zh-CN.md) | [English](./README.en.md)
 
-Telegram Topic Relay is a webhook-based service that routes Telegram private chats into forum topics in a management group.
+A webhook relay that routes **Telegram private chats** into **management group topics**.
+
+## What it does
+When a user messages the bot:
+1. the message goes into your management group
+2. each user gets their own topic
+3. you reply inside the topic
+4. the bot sends the reply back to the user
+
+Good for:
+- private chat support
+- lead intake
+- traffic handoff
+- ad-free Telegram two-way relay
 
 ## Features
-
-- Webhook mode, no `getUpdates` polling
-- Route private messages into a management group
-- Auto create or recreate topics per user
-- Pin profile card when a topic is created/recreated
-- Do not repeat profile card for every follow-up message
-- Reply to user directly inside the topic
-- Tags, ban/unban, history, clear history, refresh profile, rename topic
-- systemd-friendly deployment
-- Docker-ready
-
-## Project Structure
-
-```text
-telegram-topic-relay/
-├── README.md
-├── README.zh-CN.md
-├── README.en.md
-├── .gitignore
-├── config.example.json
-├── relay_webhook.py
-├── run_webhook.sh
-├── telegram-topic-relay.service
-├── Dockerfile
-└── docker-compose.yml
-```
+- webhook mode
+- auto create / reuse / recreate topics per user
+- profile card and pin
+- tag panel, tag search, tagged user list
+- blacklist panel
+- history, clear history, refresh profile, rename topic
+- systemd / Docker deployment
 
 ## Quick Start
-
-### 1. Configure
-
+### 1) Configure
 ```bash
 cp config.example.json config.json
 ```
-
-Example:
 
 ```json
 {
@@ -52,17 +42,13 @@ Example:
 }
 ```
 
-### 2. Run locally
-
+### 2) Run
 ```bash
 chmod +x run_webhook.sh
 ./run_webhook.sh
 ```
 
-### 3. Configure reverse proxy
-
-Example Nginx:
-
+### 3) Reverse proxy
 ```nginx
 location /telegram-relay/webhook {
     proxy_pass http://127.0.0.1:8780/;
@@ -74,8 +60,7 @@ location /telegram-relay/health {
 }
 ```
 
-### 4. Set webhook
-
+### 4) Set webhook
 ```bash
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -d "url=https://your-domain.com/telegram-relay/webhook" \
@@ -84,72 +69,12 @@ curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -d "drop_pending_updates=true"
 ```
 
-## Group Topic Workflow
-
-1. Add the bot to a forum-enabled supergroup.
-2. Disable BotFather privacy mode.
-3. Send `/bindgroup` in the group.
-4. User sends private message to the bot.
-5. Bot creates/reuses a topic for the user.
-6. Admin replies directly inside the topic.
-
-## Admin Commands
-
-- `/bindgroup`
-- `/unbindgroup`
-- `/ban`
-- `/unban`
-- `/tag tag-name`
-- `/untag tag-name`
-- `/history`
-- `/clear`
-- `/profile`
-- `/rename`
-
-## Buttons
-
-- `🚫 Ban / ✅ Unban`
-- `🧾 History`
-- `🏷 Tag hint`
-- `🧹 Clear`
-- `👤 Refresh`
-- `✏️ Rename`
-
-## Blacklist Panel
-
-Currently implemented as a profile-card-driven moderation flow:
-- ban/unban button
-- `/ban` and `/unban`
-- banned users are blocked from normal delivery flow
-
-The next step can be a dedicated `/blacklist` panel command and paginated management view.
-
-## Docker
-
-Build:
-
-```bash
-docker build -t telegram-topic-relay .
-```
-
-Run:
-
-```bash
-docker compose up -d
-```
-
-## Health Check
-
-```bash
-curl http://127.0.0.1:8780/health
-curl https://your-domain.com/telegram-relay/health
-```
+## Usage
+1. Add the bot to a forum-enabled supergroup
+2. Disable BotFather privacy mode
+3. Send `/bindgroup` in the group
+4. Users message the bot in private
+5. Reply directly inside the topic
 
 ## Repository
-
 - GitHub: https://github.com/guyue211/telegram-topic-relay
-
-
-## Telegram Commands Menu
-
-The service registers bot commands with `setMyCommands` on startup, so Telegram can show a native command menu such as `/menu`, `/tags`, `/tagsearch`, `/blacklist`, `/stats`, `/help`.
