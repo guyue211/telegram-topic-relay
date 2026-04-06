@@ -148,3 +148,8 @@ curl https://your-domain.com/telegram-relay/health
 ## Repository
 
 - GitHub: https://github.com/guyue211/telegram-topic-relay
+
+
+## Telegram Commands Menu
+
+The service registers bot commands with `setMyCommands` on startup, so Telegram can show a native command menu such as `/menu`, `/tags`, `/tagsearch`, `/blacklist`, `/stats`, `/help`.

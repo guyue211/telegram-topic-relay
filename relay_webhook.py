@@ -37,6 +37,15 @@ CONFIG = None
 TG_CLIENT = None
 BOT_INFO = None
 
+BOT_COMMANDS = [
+    {"command": "menu", "description": "打开管理面板"},
+    {"command": "tags", "description": "查看标签面板"},
+    {"command": "tagsearch", "description": "搜索标签"},
+    {"command": "blacklist", "description": "查看黑名单面板"},
+    {"command": "stats", "description": "查看统计信息"},
+    {"command": "help", "description": "查看帮助"},
+]
+
 
 def on_signal(signum, frame):
     global running
@@ -570,6 +579,9 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
     if cmd == "/menu":
         send_text(tg, chat_id, render_main_menu(), reply_to=msg.get("message_id"), reply_markup=build_main_menu_keyboard())
         return
+    if cmd == "/stats":
+        send_text(tg, chat_id, render_stats_panel(state), reply_to=msg.get("message_id"), parse_mode="HTML")
+        return
     if cmd == "/help":
         help_text = (
             "管理员命令：\n"
@@ -805,6 +817,7 @@ def main():
     try:
         BOT_INFO = TG_CLIENT.call("getMe")
         log(f"webhook relay started for @{BOT_INFO.get('username', 'unknown')} admin={admin_id}")
+        register_bot_commands(TG_CLIENT)
     except Exception as e:
         log(f"startup failed: {e}")
         raise

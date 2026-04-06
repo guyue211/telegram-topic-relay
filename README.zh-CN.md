@@ -439,3 +439,15 @@ GitHub：
 ```text
 https://github.com/guyue211/telegram-topic-relay
 ```
+
+
+# 19. Telegram 机器人命令菜单
+
+服务启动时会自动调用 `setMyCommands` 注册原生命令菜单，因此 Telegram 输入框中可以直接看到：
+
+- `/menu`
+- `/tags`
+- `/tagsearch`
+- `/blacklist`
+- `/stats`
+- `/help`
