@@ -564,6 +564,12 @@ def handle_admin_message(tg: TG, config: dict, state: dict, msg: dict):
     if cmd == "/tags":
         send_text(tg, chat_id, render_tags_panel(state, 0), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tags_keyboard(state, 0))
         return
+    if cmd == "/tagsearch":
+        send_text(tg, chat_id, render_tag_search_result(state, arg), reply_to=msg.get("message_id"), parse_mode="HTML", reply_markup=build_tag_search_keyboard(state, arg))
+        return
+    if cmd == "/menu":
+        send_text(tg, chat_id, render_main_menu(), reply_to=msg.get("message_id"), reply_markup=build_main_menu_keyboard())
+        return
     if cmd == "/help":
         help_text = (
             "管理员命令：\n"
@@ -699,7 +705,17 @@ def handle_callback_query(tg: TG, config: dict, state: dict, query: dict):
         if message_id:
             edit_message_text(tg, admin_chat_id, message_id, render_blacklist_panel(state, page), parse_mode="HTML", reply_markup=build_blacklist_keyboard(state, page))
     elif action == "tagsearch":
-        safe_answer_callback_query(tg, query["id"], "在当前话题或群里发送 /tags 查看全部，再用 /tag 标签名 给用户打标")
+        safe_answer_callback_query(tg, query["id"], "请发送 /tagsearch 关键词")
+        if message_id:
+            edit_message_text(tg, admin_chat_id, message_id, "🔎 标签搜索\n\n请发送：/tagsearch 关键词", reply_markup={"inline_keyboard":[[{"text":"⬅️ 返回主菜单","callback_data":"menu:0"}]]})
+    elif action == "menu":
+        safe_answer_callback_query(tg, query["id"], "打开主菜单")
+        if message_id:
+            edit_message_text(tg, admin_chat_id, message_id, render_main_menu(), reply_markup=build_main_menu_keyboard())
+    elif action == "menuhelp":
+        safe_answer_callback_query(tg, query["id"], "查看帮助")
+        if message_id:
+            edit_message_text(tg, admin_chat_id, message_id, "ℹ️ 面板说明\n\n- 标签面板：看所有标签\n- 黑名单面板：看并解封黑名单\n- 标签搜索：搜索标签\n\n你也可以直接发送命令：/tags /blacklist /tagsearch 关键词", reply_markup={"inline_keyboard":[[{"text":"⬅️ 返回主菜单","callback_data":"menu:0"}]]})
     elif action == "noop":
         safe_answer_callback_query(tg, query["id"], "当前没有内容")
     else:
